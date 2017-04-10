@@ -30,7 +30,7 @@ def unzipURL(img_url):
     #     print("failed to connect")
     #
     # z = zipfile.ZipFile(StringIO.StringIO(r.content))
-    z.extractall()
+    # z.extractall()
 
     wget.download(img_url, zip_filename)
     zip_ref = zipfile.ZipFile(zip_filename, 'r')
@@ -41,7 +41,7 @@ def unzipURL(img_url):
 
     return
 
-def element_to_img(geElement, resolution, bands, bounds):
+# def element_to_img(geElement, resolution, bands, bounds):
     """
     Converts a google earth engine Element object (an element of an Image Collection)
     into a numpy array that you can display.
@@ -79,12 +79,38 @@ def element_to_img(geElement, resolution, bands, bounds):
     return tif_paths
 
 
+def image_size_at_resolution(bounds_geometry, resolution):
+    """
+    Calculates the resulting image dimentions at a specific resolution.
+    Right now this is very rough.
+
+    bounds_geometry: actual geometry object
+    """
+
+    coords = bounds_geometry.getInfo()['coordinates']
+
+    xs = [x for [x,y] in coords]
+    ys = [y for [x,y] in coords]
+
+    top_left = min(xs), max(ys)
+    bottom_left = min(xs), min(ys)
+    bottom_right = max(xs), min(ys)
+
+    height = ee.Geometry.Point(top_left).distance(ee.Geometry.Point(bottom_left)).getInfo() / resolution
+    width = ee.Geometry.Point(bottom_left).distance(ee.Geometry.Point(bottom_right)).getInfo() / resolution
+
+    return {
+        'height': height,
+        'width': width }
 
 
 
 
 
-def img_at_region(geCollection, resolution, band, geo_bounds):
+
+
+
+def img_at_region(geCollection, resolution, bands, geo_bounds):
     """
     Converts a google earth engine Element object (an element of an Image Collection)
     into a numpy array that you can display.
@@ -95,16 +121,17 @@ def img_at_region(geCollection, resolution, band, geo_bounds):
     DEFAULT_MAP_NAME = 'map_section'
 
     # create the Google Earth Engine Image object
-    gee_img = geCollection.mosaic()
+    gee_img = geCollection.select(bands).mosaic()
 
     # convert the simple list of band names into the dictionary that the query needs
+    bands_string = [{'id': b} for b in bands]
 
     # get the download link from google
     path=gee_img.getDownloadUrl({
             'name': DEFAULT_MAP_NAME,  # name the file (otherwise it will be a uninterpretable hash)
             'scale': resolution,                              # resolution in meters
             'crs': 'EPSG:4326', #4326                         #  projection
-            'bands': [{'id': 'R'}],
+            'bands': bands_string,
             'region': geo_bounds.getInfo()['coordinates']
             });
 
@@ -127,8 +154,15 @@ def available_bands(image_collection):
     band_ids = [band_info['id']
                 for band_info
                 in image_collection.first().getInfo()['bands']]
-    return band_ids
 
+    collection_size = image_collection.size().getInfo()
+
+    for b in band_ids:
+        imgs_available = image_collection.select(b).size().getInfo()
+        percent_available = imgs_available/collection_size*100
+        print "'"+b+"' available in "+ str(imgs_available) + " images. ("+str(percent_available)+"%)"
+
+    return
 
 def date_range(image_collection):
     time_format = '%Y-%m-%d'
