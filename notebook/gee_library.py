@@ -15,10 +15,22 @@ def unzipURL(img_url):
     # make tmp directory
     if not os.path.exists(TMP_DIR):
         os.makedirs(TMP_DIR)
+
     # and delete everything in it:
     filelist = [ f for f in os.listdir(TMP_DIR)]
     for f in filelist:
         os.remove(os.path.join(TMP_DIR, f))
+
+
+    # try:
+    #     r = requests.get("https://earthengine.googleapis.com/api/download?docid=d32ed4c9201c7b3d2250bbf11f46ebf9&token=7ec22db241c2fd4c80622c531e7bef3c")
+    #     print(r.status_code)
+    #     # prints the int of the status code. Find more at httpstatusrappers.com :)
+    # except requests.ConnectionError:
+    #     print("failed to connect")
+    #
+    # z = zipfile.ZipFile(StringIO.StringIO(r.content))
+    z.extractall()
 
     wget.download(img_url, zip_filename)
     zip_ref = zipfile.ZipFile(zip_filename, 'r')
@@ -48,10 +60,10 @@ def element_to_img(geElement, resolution, bands, bounds):
     # get the download link from google
     path=gee_img.getDownloadUrl({
             'name': DEFAULT_MAP_NAME,  # name the file (otherwise it will be a uninterpretable hash)
-            'scale': resolution,                              # resolution in meters
+            'scale': resolution,  # resolution in meters
             'crs': 'EPSG:4326', #4326                         #  projection
-            'bands': band_query_dict
-            # 'region': bounds.getInfo()['coordinates']
+            'bands': band_query_dict,
+            'region': str(bounds.getInfo()['coordinates'])
             });
 
     # debug output
@@ -68,7 +80,11 @@ def element_to_img(geElement, resolution, bands, bounds):
 
 
 
-def get_region(geCollection, resolution, band, bounds):
+
+
+
+
+def img_at_region(geCollection, resolution, band, geo_bounds):
     """
     Converts a google earth engine Element object (an element of an Image Collection)
     into a numpy array that you can display.
@@ -89,7 +105,7 @@ def get_region(geCollection, resolution, band, bounds):
             'scale': resolution,                              # resolution in meters
             'crs': 'EPSG:4326', #4326                         #  projection
             'bands': [{'id': 'R'}],
-            'region': bounds.getInfo()['coordinates']
+            'region': geo_bounds.getInfo()['coordinates']
             });
 
     # debug output
@@ -141,7 +157,7 @@ def bound_geometry(corner1, corner2):
     x1, y1 = corner1
     x2, y2 = corner2
 
-    return ee.Algorithms.GeometryConstructors.LinearRing(([x1,y1],[x1,y2],[y2,x2],[x2,y1]))
+    return ee.Algorithms.GeometryConstructors.LinearRing([[x1,y1],[x1,y2],[x2,y2],[x2,y1], [x1,y1]])
 
 
 def bound_string(corner1, corner2):
