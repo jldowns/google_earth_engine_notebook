@@ -1,7 +1,6 @@
 
 import os
 import random
-import wget
 import datetime
 import zipfile
 import ee
@@ -42,8 +41,12 @@ def unzipURL(img_url, tmp_directory = None):
             z.extractall(tmp_directory)
             z.close()
             return tmp_directory
+        elif r.status_code == 400:
+            print "Uh-oh. Status code 400 (Bad Request). Possible problems:"
+            print "- You requested a band that wasn't available in every image."
+            print "- Some other unknown issue."
         else:
-            print "Uh-uh. Status code", r.status_code
+            print "Uh-oh. Status code", r.status_code
     except requests.ConnectionError as e:
         print("failed to connect:", e)
 
@@ -78,13 +81,19 @@ def image_size_at_resolution(bounds_geometry, resolution):
 
 
 
-def img_at_region(geCollection, resolution, bands, geo_bounds):
-    tif_band_dictionary = tif_at_region(geCollection, resolution, bands, geo_bounds)
+def img_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
+    tif_band_dictionary = tif_at_region(geCollection, resolution, bands, geo_bounds, verbose)
 
-    return [mpimg.imread(t) for t in tif_band_dictionary.values()]
+    print tif_band_dictionary
+    img_band_dictionary = {}
+
+    for k,v in tif_band_dictionary.items():
+        img_band_dictionary[k] = mpimg.imread(v)
+
+    return img_band_dictionary
 
 
-def tif_at_region(geCollection, resolution, bands, geo_bounds):
+def tif_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
     """
     Converts a google earth engine Element object (an element of an Image Collection)
     into a numpy array that you can display.
@@ -110,7 +119,8 @@ def tif_at_region(geCollection, resolution, bands, geo_bounds):
             });
 
     # debug output
-    print path
+    if verbose:
+        print path
 
     # unzip the tiff
     tif_location = unzipURL(path)
@@ -127,7 +137,15 @@ def tif_at_region(geCollection, resolution, bands, geo_bounds):
 
     return tif_filename_object
 
+def dates_available(geCollection):
+    """
+    Returns a list of the dates available for this collection.
+    """
 
+    timestamps =  geCollection.aggregate_array('system:time_start').getInfo()
+    dateformat_array = [timestamp_to_datetime(t) for t in timestamps]
+
+    return  dateformat_array
 
 
 def available_bands(image_collection):
@@ -143,6 +161,10 @@ def available_bands(image_collection):
         print "'"+b+"' available in "+ str(imgs_available) + " images. ("+str(percent_available)+"%)"
 
     return
+
+def timestamp_to_datetime(timestamp, time_format = '%Y-%m-%d'):
+    return datetime.datetime.fromtimestamp(timestamp/1000).strftime(time_format)
+
 
 def date_range(image_collection):
     time_format = '%Y-%m-%d'
