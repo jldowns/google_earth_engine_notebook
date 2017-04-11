@@ -6,42 +6,49 @@ import datetime
 import zipfile
 import ee
 import matplotlib.image as mpimg
+import requests, StringIO
 
 
 def unzipURL(img_url, tmp_directory = None):
     """
-    Downloads and unzips a file in a tmp directory. Returns the path where everything is unzipped.
+    Downloads and unzips a file in a tmp directory.
+    Returns the path where everything is unzipped.
+    Returns None on error.
     """
-    if tmp_directory == None:
-        tmp_directory="./tmp/"+str(random.randrange(999999))
-    zip_filename = os.path.join(tmp_directory, 'zipped_tile.zip')
 
+    #
+    # Set up temp directory
+    #
+    if tmp_directory == None:
+        tmp_directory="./tmp/"+str(random.randrange(99999999))
+    zip_filename = os.path.join(tmp_directory, 'zipped_tile.zip')
     # make tmp directory
     if not os.path.exists(tmp_directory):
         os.makedirs(tmp_directory)
-
     # and delete everything in it:
     filelist = [ f for f in os.listdir(tmp_directory)]
     for f in filelist:
         os.remove(os.path.join(tmp_directory, f))
 
-
-    # try:
-    #     r = requests.get("https://earthengine.googleapis.com/api/download?docid=d32ed4c9201c7b3d2250bbf11f46ebf9&token=7ec22db241c2fd4c80622c531e7bef3c")
-    #     print(r.status_code)
-    #     # prints the int of the status code. Find more at httpstatusrappers.com :)
-    # except requests.ConnectionError:
-    #     print("failed to connect")
     #
-    # z = zipfile.ZipFile(StringIO.StringIO(r.content))
-    # z.extractall()
+    # Download file
+    #
+    try:
+        r = requests.get(img_url)
+        sc = r.status_code
 
-    wget.download(img_url, zip_filename)
-    zip_ref = zipfile.ZipFile(zip_filename, 'r')
-    zip_ref.extractall(tmp_directory)
-    zip_ref.close()
+        if r.status_code == 200:
+            z = zipfile.ZipFile(StringIO.StringIO(r.content))
+            z.extractall(tmp_directory)
+            z.close()
+            return tmp_directory
+        else:
+            print "Uh-uh. Status code", r.status_code
+    except requests.ConnectionError as e:
+        print("failed to connect:", e)
 
-    return tmp_directory
+    # Fall through on handled error/exception
+    return None
 
 
 
@@ -157,4 +164,13 @@ def bound_geometry(corner1, corner2):
     x1, y1 = corner1
     x2, y2 = corner2
 
-    return ee.Algorithms.GeometryConstructors.LinearRing([[x1,y1],[x1,y2],[x2,y2],[x2,y1], [x1,y1]])
+    # How important is this? I don't know.
+    left_x,top_y     = min([x1, x2]), max([y1, y2])
+    right_x,bottom_y = max([x1, x2]), min([y1, y2])
+
+    return ee.Algorithms.GeometryConstructors.LinearRing(
+        [ [left_x,  top_y],
+          [left_x,  bottom_y],
+          [right_x, bottom_y],
+          [right_x, top_y],
+          [left_x,  top_y] ])
