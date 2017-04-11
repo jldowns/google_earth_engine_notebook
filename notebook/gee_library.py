@@ -55,7 +55,7 @@ def unzipURL(img_url, tmp_directory = None):
 
 
 
-def image_size_at_resolution(bounds_geometry, resolution):
+def estimate_image_size_at_resolution(bounds_geometry, resolution):
     """
     Calculates the resulting image dimentions at a specific resolution.
     Right now this is very rough.
@@ -149,18 +149,33 @@ def dates_available(geCollection):
 
 
 def available_bands(image_collection):
+    """
+    Returns a dictionary in format
+    { "band1": { "number_available" : number of images that contain band1,
+                 "percent_available" : percent of all images in collection that contain band1 }
+                },
+      "band2": {...
+    }
+
+    Hits the server 1+number_of_bands times
+    """
     band_ids = [band_info['id']
                 for band_info
                 in image_collection.first().getInfo()['bands']]
 
     collection_size = image_collection.size().getInfo()
 
+    availability_dict = {}
     for b in band_ids:
         imgs_available = image_collection.select(b).size().getInfo()
         percent_available = imgs_available/collection_size*100
-        print "'"+b+"' available in "+ str(imgs_available) + " images. ("+str(percent_available)+"%)"
+        availability_dict[b] = {
+            "number_available": imgs_available,
+            "percent_available": percent_available
+        }
+        # print "'"+b+"' available in "+ str(imgs_available) + " images. ("+str(percent_available)+"%)"
 
-    return
+    return availability_dict
 
 def timestamp_to_datetime(timestamp, time_format = '%Y-%m-%d'):
     return datetime.datetime.fromtimestamp(timestamp/1000).strftime(time_format)
@@ -189,6 +204,33 @@ def bound_geometry(corner1, corner2):
     # How important is this? I don't know.
     left_x,top_y     = min([x1, x2]), max([y1, y2])
     right_x,bottom_y = max([x1, x2]), min([y1, y2])
+
+    return ee.Algorithms.GeometryConstructors.LinearRing(
+        [ [left_x,  top_y],
+          [left_x,  bottom_y],
+          [right_x, bottom_y],
+          [right_x, top_y],
+          [left_x,  top_y] ])
+
+
+def square_centered_at(point, half_distance):
+    """
+    Returns a ee.Geometry object that is a square, centered at `point`,
+    where each side measures 2 times `half_distance`.
+
+    `point`: (long, lat)
+    `distance`: in meters
+    """
+
+    # Use the buffer function to create a circle with radius half_distance around point.
+    circle_coords = ee.Geometry.Point(point).buffer(half_distance).getInfo()['coordinates'][0]
+
+    xs = [x for x,y in circle_coords]
+    ys = [y for x,y in circle_coords]
+
+    # Extract the points that define a box containing the circle
+    left_x,top_y     = min(xs), max(ys)
+    right_x,bottom_y = max(xs), min(ys)
 
     return ee.Algorithms.GeometryConstructors.LinearRing(
         [ [left_x,  top_y],
