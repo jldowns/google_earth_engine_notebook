@@ -33,7 +33,7 @@ docker run -it --rm \
     -v $WORK_DIR:/home/jovyan/work \
     -v $CREDENTIALS_DIR:/home/jovyan/.config/earthengine \
     -e GRANT_SUDO=yes --user root \
-    jldowns/google_earth_engine_notebook \
+    jldowns/google_earth_engine_notebook:1.0 \
     start-notebook.sh --NotebookApp.token=''
 ```
 
