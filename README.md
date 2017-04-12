@@ -1,4 +1,4 @@
-# Google Earth Engine Tutorial
+# Google Earth Engine Notebook and Tutorial
 
 Here's a little series of Jupyter Notebooks that walk through pulling imagery from Google Earth Engine. While GEE has many features and server-side computes available, this guide treats GEE simply as an imagery datastore and focuses on navigating the images by location and spectrum.
 
@@ -17,7 +17,7 @@ At the end of these guides you should be able to request imagery by location, ba
 3. SupervisedLearning: *A gentle introduction to TensorFlow*
 4. UnsupervisedLearning: *Using autoencoders and clustering to group images* -->
 
-### Authenticating
+## Authenticating
 
 Before you can use the Google Earth Engine, you must sign up with your Google account. You can sign up here: https://earthengine.google.com/ (While the website claims it could take a week to get an account, I've never seen it take more than 10 seconds.)
 
