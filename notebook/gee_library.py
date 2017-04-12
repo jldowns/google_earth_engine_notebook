@@ -6,6 +6,8 @@ import zipfile
 import ee
 import matplotlib.image as mpimg
 import requests, StringIO
+import tifffile as tiff
+
 
 
 def unzipURL(img_url, tmp_directory = None):
@@ -63,7 +65,8 @@ def estimate_image_size_at_resolution(bounds_geometry, resolution):
     bounds_geometry: actual geometry object
     """
 
-    coords = bounds_geometry.getInfo()['coordinates']
+    coords = bounds_geometry.getInfo()['coordinates'][0]
+
 
     xs = [x for [x,y] in coords]
     ys = [y for [x,y] in coords]
@@ -88,7 +91,8 @@ def img_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
     img_band_dictionary = {}
 
     for k,v in tif_band_dictionary.items():
-        img_band_dictionary[k] = mpimg.imread(v)
+        # img_band_dictionary[k] = mpimg.imread(v)
+        img_band_dictionary[k] = tiff.imread(v)
 
     return img_band_dictionary
 
@@ -205,12 +209,16 @@ def bound_geometry(corner1, corner2):
     left_x,top_y     = min([x1, x2]), max([y1, y2])
     right_x,bottom_y = max([x1, x2]), min([y1, y2])
 
-    return ee.Algorithms.GeometryConstructors.LinearRing(
-        [ [left_x,  top_y],
-          [left_x,  bottom_y],
-          [right_x, bottom_y],
-          [right_x, top_y],
-          [left_x,  top_y] ])
+    xMin=min([x1, x2])
+    yMin=min([y1, y2])
+    xMax=max([x1, x2])
+    yMax=max([y1, y2])
+
+    # First create a "linear ring" that is the outline of the points.
+    rectangle_representation = ee.Geometry.Rectangle([xMin, yMin, xMax, yMax])
+
+    # then fill in this ring by calculating the convex hull
+    return rectangle_representation
 
 
 def square_centered_at(point, half_distance):
@@ -232,9 +240,22 @@ def square_centered_at(point, half_distance):
     left_x,top_y     = min(xs), max(ys)
     right_x,bottom_y = max(xs), min(ys)
 
-    return ee.Algorithms.GeometryConstructors.LinearRing(
-        [ [left_x,  top_y],
-          [left_x,  bottom_y],
-          [right_x, bottom_y],
-          [right_x, top_y],
-          [left_x,  top_y] ])
+    xMin=min(xs)
+    yMin=min(ys)
+    xMax=max(xs)
+    yMax=max(ys)
+
+    # First create a "linear ring" that is the outline of the points.
+    rectangle_representation = ee.Geometry.Rectangle([xMin, yMin, xMax, yMax])
+
+    # First create a "linear ring" that is the outline of the points.
+    linear_ring_representation = ee.Algorithms.GeometryConstructors.LinearRing(
+                                                        [ [left_x,  top_y],
+                                                          [left_x,  bottom_y],
+                                                          [right_x, bottom_y],
+                                                          [right_x, top_y],
+                                                          [left_x,  top_y] ])
+
+    # then fill in this ring by calculating the convex hull
+    return rectangle_representation
+    return linear_ring_representation.convexHull()
