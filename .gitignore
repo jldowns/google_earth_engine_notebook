@@ -1,9 +1,9 @@
 .ipynb_checkpoints/
 tmp/
 credentials/
-
-
-
+ch3_data/
+MNIST_data/
+*.xlsx
 
 # Created by https://www.gitignore.io/api/osx,python
 

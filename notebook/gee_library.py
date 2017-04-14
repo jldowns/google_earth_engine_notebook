@@ -86,8 +86,6 @@ def estimate_image_size_at_resolution(bounds_geometry, resolution):
 
 def img_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
     tif_band_dictionary = tif_at_region(geCollection, resolution, bands, geo_bounds, verbose)
-
-    print tif_band_dictionary
     img_band_dictionary = {}
 
     for k,v in tif_band_dictionary.items():
@@ -103,6 +101,8 @@ def tif_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
     into a numpy array that you can display.
 
     bands: ['10', '20', '30]
+
+    Hits the server once.
     """
 
     DEFAULT_MAP_NAME = 'map_section'
@@ -228,34 +228,8 @@ def square_centered_at(point, half_distance):
 
     `point`: (long, lat)
     `distance`: in meters
+
+    Doesn't hit the server.
     """
 
-    # Use the buffer function to create a circle with radius half_distance around point.
-    circle_coords = ee.Geometry.Point(point).buffer(half_distance).getInfo()['coordinates'][0]
-
-    xs = [x for x,y in circle_coords]
-    ys = [y for x,y in circle_coords]
-
-    # Extract the points that define a box containing the circle
-    left_x,top_y     = min(xs), max(ys)
-    right_x,bottom_y = max(xs), min(ys)
-
-    xMin=min(xs)
-    yMin=min(ys)
-    xMax=max(xs)
-    yMax=max(ys)
-
-    # First create a "linear ring" that is the outline of the points.
-    rectangle_representation = ee.Geometry.Rectangle([xMin, yMin, xMax, yMax])
-
-    # First create a "linear ring" that is the outline of the points.
-    linear_ring_representation = ee.Algorithms.GeometryConstructors.LinearRing(
-                                                        [ [left_x,  top_y],
-                                                          [left_x,  bottom_y],
-                                                          [right_x, bottom_y],
-                                                          [right_x, top_y],
-                                                          [left_x,  top_y] ])
-
-    # then fill in this ring by calculating the convex hull
-    return rectangle_representation
-    return linear_ring_representation.convexHull()
+    return ee.Geometry.Point(point).buffer(half_distance).bounds()
