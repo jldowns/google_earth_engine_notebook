@@ -3,6 +3,7 @@ tmp/
 credentials/
 ch3_data/
 MNIST_data/
+MNIST-data/
 *.xlsx
 
 # Created by https://www.gitignore.io/api/osx,python
