@@ -10,6 +10,15 @@ import tifffile as tiff
 
 
 
+class ServerError(Exception):
+    """
+    This exception communicates that a request to Google's severs returned
+    a bad response.
+    """
+    pass
+
+
+
 def unzipURL(img_url, tmp_directory = None):
     """
     Downloads and unzips a file in a tmp directory.
@@ -37,20 +46,23 @@ def unzipURL(img_url, tmp_directory = None):
     try:
         r = requests.get(img_url)
         sc = r.status_code
-
-        if r.status_code == 200:
-            z = zipfile.ZipFile(StringIO.StringIO(r.content))
-            z.extractall(tmp_directory)
-            z.close()
-            return tmp_directory
-        elif r.status_code == 400:
-            print "Uh-oh. Status code 400 (Bad Request). Possible problems:"
-            print "- You requested a band that wasn't available in every image."
-            print "- Some other unknown issue."
-        else:
-            print "Uh-oh. Status code", r.status_code
     except requests.ConnectionError as e:
-        print("failed to connect:", e)
+        raise e
+
+    if r.status_code == 200:
+        z = zipfile.ZipFile(StringIO.StringIO(r.content))
+        z.extractall(tmp_directory)
+        z.close()
+        return tmp_directory
+    elif r.status_code == 400:
+        print "Uh-oh. Status code 400 (Bad Request). Possible problems:"
+        print "- You requested a band that wasn't available in every image."
+        print "- Some other unknown issue."
+        raise ServerError("Status code 400")
+    elif r.status_code == 429:
+        raise ServerError("Status code 429")
+    else:
+        raise ServerError("Uh-oh. Status code " + str(r.status_code))
 
     # Fall through on handled error/exception
     return None
@@ -102,7 +114,10 @@ def tif_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
 
     bands: ['10', '20', '30]
 
-    Hits the server once.
+    Hits the server thrice.
+        - Once for geo_bounds.getInfo()['coordinates']
+        - Once for getDownloadUrl()
+        - Once for downloading the zip
     """
 
     DEFAULT_MAP_NAME = 'map_section'

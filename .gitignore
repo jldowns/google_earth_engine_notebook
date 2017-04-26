@@ -1,3 +1,5 @@
+*.tfrecords
+*.ipynb
 .ipynb_checkpoints/
 tmp/
 credentials/
