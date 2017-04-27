@@ -3,6 +3,8 @@
 tmp/
 credentials/
 ch3_data/
+ch3_data_try_three
+ch3_data_try_two
 MNIST_data/
 MNIST-data/
 *.xlsx
