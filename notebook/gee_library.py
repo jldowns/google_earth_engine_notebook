@@ -13,7 +13,9 @@ import tifffile as tiff
 class ServerError(Exception):
     """
     This exception communicates that a request to Google's severs returned
-    a bad response.
+    a bad response. Use it like:
+
+    raise ServerError("Got a 404 resposnse.")
     """
     pass
 
@@ -22,8 +24,12 @@ class ServerError(Exception):
 def unzipURL(img_url, tmp_directory = None):
     """
     Downloads and unzips a file in a tmp directory.
-    Returns the path where everything is unzipped.
-    Returns None on error.
+    Hits the server once.
+
+    img_url: A web address to a zip file.
+    tmp_directory: Optional path to unzip the contents.
+
+    Returns: Path to the directory containing the contents of the zip file.
     """
 
     #
@@ -65,16 +71,24 @@ def unzipURL(img_url, tmp_directory = None):
         raise ServerError("Uh-oh. Status code " + str(r.status_code))
 
     # Fall through on handled error/exception
-    return None
+    raise Exception("Unknown error in unzipURL().")
 
 
 
 def estimate_image_size_at_resolution(bounds_geometry, resolution):
     """
-    Calculates the resulting image dimentions at a specific resolution.
-    Right now this is very rough.
+    Estimates the resulting image dimentions at a specific resolution.
+    This function is useful to use before trying to download a patch of earth
+    imagery to make sure you're not trying to download a 300 MB image or something.
+    (Right now this is very rough and not 100 percent accurate. But it does
+    get in the ballpark.)
 
-    bounds_geometry: actual geometry object
+    Hits the server twice.
+
+    bounds_geometry: gee.Geometry object
+    Resolution: meters per pixel
+
+    Returns: {'height': estimated image height, 'width': estimated image width}
     """
 
     coords = bounds_geometry.getInfo()['coordinates'][0]
@@ -97,6 +111,22 @@ def estimate_image_size_at_resolution(bounds_geometry, resolution):
 
 
 def img_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
+    """
+    High-level function for retreiving imagery from Google Earth Engine.
+    img_at_region() returns a dictionary of numpy arrays based on the images
+    retreived by tif_at_region().
+
+    geCollection: ee.ImageCollection object.
+    resolution: Image resolution in meters per pixel
+    bands: List of requested bands. For example, ['R', 'G', 'B']
+    geo_bounds: ee.Geometry object representing the area on the earth to get
+        the imagery from.
+    verbose: Set to True to print out debugging information.
+
+    Returns a dictionary whose values are numpy arrays and whose keys are
+    band names. For example:
+    { 'R': numpy_img, 'G': numpy_img}
+    """
     tif_band_dictionary = tif_at_region(geCollection, resolution, bands, geo_bounds, verbose)
     img_band_dictionary = {}
 
@@ -109,15 +139,24 @@ def img_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
 
 def tif_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
     """
-    Converts a google earth engine Element object (an element of an Image Collection)
-    into a numpy array that you can display.
+    Downloads imagery in `bands` from the area encompassed by `geo_bounds`.
 
-    bands: ['10', '20', '30]
+    geCollection: ee.ImageCollection object.
+    resolution: Image resolution in meters per pixel
+    bands: List of requested bands. For example, ['R', 'G', 'B']
+    geo_bounds: ee.Geometry object representing the area on the earth to get
+        the imagery from.
+    verbose: Set to True to print out debugging information.
 
     Hits the server thrice.
         - Once for geo_bounds.getInfo()['coordinates']
         - Once for getDownloadUrl()
         - Once for downloading the zip
+
+    Returns a dictionary mapping band names to tiff image paths. For example:
+        {'10': './tmp/APFR/map_section.10.tif',
+         '20': './tmp/APFR/map_section.20.tif',
+         '30': './tmp/APFR/map_section.30.tif' }
     """
 
     DEFAULT_MAP_NAME = 'map_section'
@@ -159,6 +198,10 @@ def tif_at_region(geCollection, resolution, bands, geo_bounds, verbose=False):
 def dates_available(geCollection):
     """
     Returns a list of the dates available for this collection.
+
+    geCollection: ee.ImageCollection object
+
+    Returns a list of date strings in YYYY-MM-DD format.
     """
 
     timestamps =  geCollection.aggregate_array('system:time_start').getInfo()
@@ -169,14 +212,26 @@ def dates_available(geCollection):
 
 def available_bands(image_collection):
     """
+    Determines which bands are available in the image collection.
+    Since the images in a specific collection are not guarenteeded to all
+    share the same bands, this function looks at the bands in the first image, and
+    then calculates how many images in the collection include that band.
+    Since the band names are determined from a single image, the bands that
+    are returned may only be a subset of all the bands present in a collection.
+    However, this function is helpful to at least determine the naming scheme
+    used in a collecion, and whether it is safe to assume that certain bands
+    are included in every image in the collection.
+
+    image_collection: ee.ImageCollection object
+
+    Hits the server 1+number_of_bands times
+
     Returns a dictionary in format
     { "band1": { "number_available" : number of images that contain band1,
                  "percent_available" : percent of all images in collection that contain band1 }
                 },
       "band2": {...
     }
-
-    Hits the server 1+number_of_bands times
     """
     band_ids = [band_info['id']
                 for band_info
@@ -197,10 +252,29 @@ def available_bands(image_collection):
     return availability_dict
 
 def timestamp_to_datetime(timestamp, time_format = '%Y-%m-%d'):
+    """
+    Converts the UNIX epoch timestamp used by the Earth Engine database into a
+    format readable by humans (and also the format used by the Earth Engine
+    date filters)
+
+    timestamp: UNIX time epoch
+    time_format: optional datetime format
+
+    Returns a datetime string.
+    """
     return datetime.datetime.fromtimestamp(timestamp/1000).strftime(time_format)
 
 
 def date_range(image_collection):
+    """
+    Determines the date range of the images included in an image collection.
+
+    image_collection: ee.ImageCollection object
+
+    Returns a dictionary in the format:
+    { 'begin_time': '2009-01-03',
+      'end_time'  : '2012-10-21' }
+    """
     time_format = '%Y-%m-%d'
     min_time = image_collection.aggregate_min('system:time_start').getInfo()
     max_time = image_collection.aggregate_max('system:time_end').getInfo()
@@ -214,8 +288,16 @@ def collection_length(image_collection):
     return image_collection.size().getInfo()
 
 def bound_geometry(corner1, corner2):
-    """ Given 2 points, returns a Geometry object that represents the square
-    those 2 points make up. """
+    """
+    Given 2 points, returns a Geometry object that represents the rectangle
+    those 2 points make up. Note that the coordinates are provided in
+    longitude, latitude order.
+
+    corner1: (longitude, latitude)
+    corner2: (longitude, latitude)
+
+    Returns an ee.Geometry object.
+    """
 
     x1, y1 = corner1
     x2, y2 = corner2
@@ -238,13 +320,17 @@ def bound_geometry(corner1, corner2):
 
 def square_centered_at(point, half_distance):
     """
-    Returns a ee.Geometry object that is a square, centered at `point`,
-    where each side measures 2 times `half_distance`.
-
-    `point`: (long, lat)
-    `distance`: in meters
+    Returns a ee.Geometry object that is a square, centered at point,
+    where each side measures 2 times half_distance. (half_distance can be
+    thought of like a radius, since the function uses a circle to make the
+    measurements.)
 
     Doesn't hit the server.
+
+    point: (longitude, latitude)
+    half_distance: in meters
+
+    Returns an ee.Geometry object.
     """
 
     return ee.Geometry.Point(point).buffer(half_distance).bounds()

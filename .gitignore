@@ -1,3 +1,4 @@
+visor_renamed/
 *.tfrecords
 .ipynb_checkpoints/
 tmp/
