@@ -12,10 +12,13 @@ At the end of these guides you should be able to request imagery by location, ba
 
 1. Introduction: *Getting imagery from GEE*
 2. Spectrums: *Pulling data from different specra and collections.*
+3. Supervised: *A gentle introduction to TensorFlow*
+4. Unsupervised: *Using autoencoders and clustering to group images* -->
 
-<!-- ### Roadmaped
-3. SupervisedLearning: *A gentle introduction to TensorFlow*
-4. UnsupervisedLearning: *Using autoencoders and clustering to group images* -->
+### Multispectrum Experiment
+5. Data Acquisition
+6. All-in-one Analysis
+7. Pipelined Analysis
 
 ## Authenticating
 
