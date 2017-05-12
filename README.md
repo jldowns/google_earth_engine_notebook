@@ -13,7 +13,7 @@ At the end of these guides you should be able to request imagery by location, ba
 1. Introduction: *Getting imagery from GEE*
 2. Spectrums: *Pulling data from different specra and collections.*
 3. Supervised: *A gentle introduction to TensorFlow*
-4. Unsupervised: *Using autoencoders and clustering to group images* -->
+4. Unsupervised: *Using autoencoders and clustering to group images (work in progress)* -->
 
 ### Multispectrum Experiment
 5. Data Acquisition
@@ -36,7 +36,7 @@ docker run -it --rm \
     -v $WORK_DIR:/home/jovyan/work \
     -v $CREDENTIALS_DIR:/home/jovyan/.config/earthengine \
     -e GRANT_SUDO=yes --user root \
-    jldowns/google_earth_engine_notebook:1.0 \
+    jldowns/google_earth_engine_notebook:1.1 \
     start-notebook.sh --NotebookApp.token=''
 ```
 
