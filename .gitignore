@@ -1,13 +1,9 @@
 visor_renamed/
+data/
 *.tfrecords
 .ipynb_checkpoints/
 tmp/
 credentials/
-ch3_data/
-ch3_data_try_three
-ch3_data_try_two
-MNIST_data/
-MNIST-data/
 *.xlsx
 
 # Created by https://www.gitignore.io/api/osx,python

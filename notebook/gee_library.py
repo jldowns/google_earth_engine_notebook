@@ -251,6 +251,42 @@ def available_bands(image_collection):
 
     return availability_dict
 
+
+def date_slices(geImageCollection, bounds_geometry, descending=False):
+    """
+    Returns a list of non-overlapping date ranges where every date range
+    covers the bounds_geometry.
+    This function is not very efficient takes a loong time.
+    """
+
+    date_slices = []
+    date_list = list(set(dates_available(geImageCollection)))
+    date_list.sort()
+    print len(date_list), "unique dates found."
+    # convert these strings into Date objects
+    date_list = [ee.Date(d) for d in date_list]
+    start_date = date_list[0]
+
+    for i in range(len(date_list)):
+        # We're using an integer iterator because we want some lookahead later on
+        end_date = date_list[i].advance(1, 'day')
+        potential_slice_collection = geImageCollection.filter(ee.Filter.date(start_date, end_date))
+
+        # If this date slice covers the image 100%, add it to the date_slices list
+        # and increment the start date to the next available date
+        if collection_fills_bounds(potential_slice_collection, bounds_geometry):
+            date_slices.append((start_date, end_date))
+            try:
+                start_date = date_list[i+1]
+            except IndexError:
+                pass
+
+        print i
+
+    return date_slices
+
+
+
 def timestamp_to_datetime(timestamp, time_format = '%Y-%m-%d'):
     """
     Converts the UNIX epoch timestamp used by the Earth Engine database into a
@@ -334,3 +370,13 @@ def square_centered_at(point, half_distance):
     """
 
     return ee.Geometry.Point(point).buffer(half_distance).bounds()
+
+def collection_fills_bounds(geImageCollection, bounds_geometry):
+    """
+    Returns true if the images in geImageCollection have 100 percent coverage
+    of the bounds_geometry.
+    """
+    collection_geometry = geImageCollection.geometry()
+    bounded_collection = collection_geometry.intersection(bounds_geometry, 0.01)
+    missing_spots = bounds_geometry.difference(bounded_collection, 0.01)
+    return missing_spots.area().getInfo() == 0

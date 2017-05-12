@@ -1,4 +1,4 @@
-
+csv_f
 # Math Stuff
 import ee, scipy.misc, random, os, errno
 from glob import glob
@@ -53,9 +53,9 @@ def batch_download(gps_bounds, destination_image_directory, count):
 
 
 
-def create_label_csv_file(directory_list, label_filename, class_list=None, file_extensions=['png']):
+def create_label_csv_file(directory_list, csv_filename, class_list=None, file_extensions=['png']):
     """
-    Creates a CSV file called `label_filename` written in the following format:
+    Creates a CSV file called `csv_filename` written in the following format:
         path_to_image, class_number
         path_to_image, class_number
         path_to_image, class_number
@@ -63,7 +63,7 @@ def create_label_csv_file(directory_list, label_filename, class_list=None, file_
 
     directory_list: List of directories to search through. The directories
         will be searched recursively.
-    label_filename: The filename (including extension) of the CSV file to be
+    csv_filename: The filename (including extension) of the CSV file to be
         written to. If the file already exists, it will be overwritten.
     class_list: Optional list of labels (strings). All the images found in each
         directory in `directory_list[i]` will be assigned the class found at
@@ -80,7 +80,7 @@ def create_label_csv_file(directory_list, label_filename, class_list=None, file_
     assert(len(directory_list) == len(class_list))
 
     # Open the label file for writing
-    with open(label_filename, "w") as myfile:
+    with open(csv_filename, "w") as myfile:
         # Every directory_list item corresponds to a class_list item.
         for dir, klass in izip(directory_list, class_list):
             print "Class", klass, "..."
@@ -95,13 +95,16 @@ def create_label_csv_file(directory_list, label_filename, class_list=None, file_
 
 
 
-def convert_to_protobuf(proto_filename, label_file):
+def convert_to_protobuf(proto_filename, csv_filename):
+"""
+Converts a valid CSV file
+"""
     print "Protobuffing", proto_filename
     # Open a protobuffer writer
     proto_writer = tf.python_io.TFRecordWriter(proto_filename)
 
     # Iterate over every exmaple and put it in the protobuffer
-    for line in tqdm(open(label_file).read().splitlines()):
+    for line in tqdm(open(csv_filename).read().splitlines()):
         png_path, label = line.split(',')
         img = misc.imread(png_path).flatten()
 
